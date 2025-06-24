@@ -50,13 +50,15 @@ app.post('/api/mcp/generate-mission', async (req, res) => {
     });
 
     // Send the JSON-RPC request to the MCP server
+    // Dynamically forward the tool name and arguments from the client
+    const { name, arguments: args } = req.body.params;
     const jsonRpcRequest = {
       jsonrpc: "2.0",
       id: Date.now(),
       method: "tools/call",
       params: {
-        name: "generate_mission",
-        arguments: req.body.params.arguments
+        name, // dynamic tool name
+        arguments: args
       }
     };
 

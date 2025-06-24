@@ -94,98 +94,125 @@ export class MissionGenerator {
     }
     buildMissionGenerationPrompt(userContext, preferences) {
         const { profile, people, tastes } = userContext;
-        // Get focused, specific data instead of dumping everything
+        // Get focused, theme-based data instead of dumping everything
         const focusedData = this.getFocusedDataForMission(userContext, preferences);
         const missionType = preferences?.missionType || 'experience';
         const difficulty = preferences?.difficulty || 'beginner';
         const duration = preferences?.duration || 45;
-        // Build a focused, specific prompt
-        return `Create ONE specific, actionable mission for a ${difficulty} level ${missionType} activity.
+        // Build a theme-focused prompt based on Momento's 6 life themes
+        return `Create ONE specific, actionable mission based on the user's PRIMARY LIFE THEME.
 
-USER CONTEXT (be selective, don't mention everything):
+MOMENTO'S 6 LIFE THEMES:
+1. Adventure Awaits 🌟 - Exploration, discovery, trying new things
+2. Deep Connections 💕 - Meaningful relationships, quality time with loved ones
+3. Endless Growth 🌱 - Personal development, learning, skill building
+4. Acts of Love ✨ - Kindness, giving back, helping others
+5. Inner Peace 🌙 - Reflection, mindfulness, emotional well-being
+6. Radiant Health 🌸 - Physical wellness, mental health, self-care
+
+USER CONTEXT:
 ${focusedData.contextSummary}
 
 MISSION REQUIREMENTS:
 - Type: ${missionType}
 - Duration: ${duration} minutes
 - Difficulty: ${difficulty}
-- Make it SPECIFIC and FOCUSED (not "explore all your interests")
+- Primary Life Theme: ${focusedData.primaryTheme}
+- Social Context: ${focusedData.socialContext}
 
-EXAMPLE GOOD MISSIONS:
-- "Make chicken biryani using the recipe you bookmarked" (not "cook something from your many cuisines")
-- "Create a 20-minute indie rock playlist for your morning walk" (not "make a playlist with all your music")
-- "Text your college friend Sarah about that book recommendation" (not "connect with all your important people")
+THEME-SPECIFIC MISSION EXAMPLES:
+
+ADVENTURE missions: "Visit a local neighborhood you've never explored", "Try a new coffee shop and strike up a conversation"
+RELATIONSHIPS missions: "Write a handwritten thank-you note to your friend Sarah", "Plan a surprise 15-minute activity for your partner"
+GROWTH missions: "Learn 5 words in a language you're curious about", "Practice a skill you've been avoiding for 20 minutes"
+KINDNESS missions: "Leave an encouraging note for a coworker", "Text someone who might need support today"
+REFLECTION missions: "Journal about what you're grateful for right now", "Take a mindful 10-minute walk without your phone"
+WELLNESS missions: "Do a 15-minute stretching routine", "Prepare a nourishing snack mindfully"
 
 Generate a mission that is:
-1. SPECIFIC (one clear action, not multiple options)
+1. SPECIFIC to the PRIMARY LIFE THEME (${focusedData.primaryTheme})
 2. ACHIEVABLE in ${duration} minutes
-3. PERSONALIZED (uses 1-2 specific preferences, not all of them)
+3. MEANINGFUL (creates a real moment, not just a task)
 4. ACTIONABLE (clear next steps)
 
 Respond in this exact JSON format:
 {
-  "title": "Specific Action Title",
-  "description": "Clear, specific description focusing on ONE thing",
+  "title": "Theme-Specific Action Title",
+  "description": "Clear description focused on the life theme, creating a meaningful moment",
   "mission_type": "${missionType}",
-  "mission_category": "${this.determineMissionCategory(profile, people)}",
+  "mission_category": "${focusedData.socialContext}",
   "difficulty": "${difficulty}",
   "estimated_duration": ${duration},
   "required_resources": ["specific", "needed", "items"],
-  "learning_objectives": ["what they'll gain from this specific activity"],
+  "learning_objectives": ["what meaningful outcome this creates for their life theme"],
   "personalized_elements": {
-    "specific_preference_used": "one or two specific things from their profile",
-    "context": "why this specific choice makes sense for them"
+    "life_theme": "${focusedData.primaryTheme}",
+    "social_context": "${focusedData.socialContext}",
+    "why_meaningful": "explanation of how this mission creates a meaningful moment"
   }
 }`;
     }
-    // New focused data selection method
+    // New focused data selection method based on LIFE THEMES, not just food/music
     getFocusedDataForMission(userContext, preferences) {
         const { profile, people, tastes } = userContext;
         const missionType = preferences?.missionType || 'experience';
-        // Select only relevant data based on mission type
-        let focusedData = {
-            contextSummary: ''
-        };
-        // Get basic user info
+        // Get life themes - this is what drives Momento missions
         const lifeThemes = profile?.life_themes?.selectedThemes || [];
         const coupleHub = profile?.life_themes?.coupleHub;
         const familyMode = profile?.life_themes?.familyMode;
-        // Select 1-2 specific interests instead of listing everything
-        let specificContext = '';
-        if (missionType === 'experience' || missionType === 'creativity') {
-            // Pick ONE specific cuisine or ONE specific music genre
-            const favoriteCuisines = tastes?.food?.cuisines || [];
-            const favoriteGenres = tastes?.music?.genres || [];
-            if (favoriteCuisines.length > 0) {
-                const randomCuisine = favoriteCuisines[Math.floor(Math.random() * favoriteCuisines.length)];
-                specificContext += `Loves ${randomCuisine} cuisine. `;
-            }
-            if (favoriteGenres.length > 0) {
-                const randomGenre = favoriteGenres[Math.floor(Math.random() * favoriteGenres.length)];
-                specificContext += `Enjoys ${randomGenre} music. `;
-            }
-        }
-        if (missionType === 'connection') {
-            // Pick ONE specific person
-            const importantPeople = people || [];
-            if (importantPeople.length > 0) {
-                const randomPerson = importantPeople[Math.floor(Math.random() * importantPeople.length)];
-                specificContext += `Has a ${randomPerson.relationship.toLowerCase()} named ${randomPerson.name}. `;
-            }
-        }
+        // Select a PRIMARY life theme to focus this mission on
+        const primaryTheme = lifeThemes.length > 0
+            ? lifeThemes[Math.floor(Math.random() * lifeThemes.length)]
+            : 'growth'; // Default to growth
+        // Build context based on the PRIMARY LIFE THEME, not just food preferences
+        let themeContext = this.getThemeSpecificContext(primaryTheme, userContext);
         // Determine social context
-        let socialContext = 'Individual focus';
+        let socialContext = 'solo';
         if (coupleHub && familyMode) {
-            socialContext = Math.random() > 0.5 ? 'Couple time' : 'Family time';
+            socialContext = Math.random() > 0.5 ? 'couple' : 'family';
         }
         else if (coupleHub) {
-            socialContext = 'Couple time';
+            socialContext = Math.random() > 0.7 ? 'couple' : 'solo';
         }
         else if (familyMode) {
-            socialContext = 'Family time';
+            socialContext = Math.random() > 0.7 ? 'family' : 'solo';
         }
-        focusedData.contextSummary = `${specificContext}${socialContext}. Life themes: ${lifeThemes.slice(0, 2).join(', ')}.`;
-        return focusedData;
+        return {
+            contextSummary: `Primary life theme: ${primaryTheme}. ${themeContext} Social context: ${socialContext}.`,
+            primaryTheme,
+            socialContext
+        };
+    }
+    // Generate context based on the specific life theme
+    getThemeSpecificContext(theme, userContext) {
+        const { people, tastes } = userContext;
+        switch (theme) {
+            case 'adventure':
+                // Focus on exploration, trying new things
+                return 'Seeks new experiences and discoveries.';
+            case 'relationships':
+                // Focus on meaningful connections
+                const importantPeople = people || [];
+                if (importantPeople.length > 0) {
+                    const randomPerson = importantPeople[Math.floor(Math.random() * importantPeople.length)];
+                    return `Has a ${randomPerson.relationship.toLowerCase()} named ${randomPerson.name} who matters to them.`;
+                }
+                return 'Values deep, meaningful relationships.';
+            case 'growth':
+                // Focus on learning and development
+                return 'Committed to personal development and learning new skills.';
+            case 'kindness':
+                // Focus on giving back and helping others
+                return 'Believes in making a positive impact through acts of kindness.';
+            case 'reflection':
+                // Focus on mindfulness and inner peace
+                return 'Values quiet reflection and inner peace.';
+            case 'wellness':
+                // Focus on physical and mental health
+                return 'Prioritizes physical and mental well-being.';
+            default:
+                return 'Seeks meaningful experiences that align with their values.';
+        }
     }
     determineMissionCategory(profile, people) {
         const coupleHub = profile?.life_themes?.coupleHub;

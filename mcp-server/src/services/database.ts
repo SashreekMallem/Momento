@@ -57,6 +57,42 @@ export interface UserEvent {
   created_at: string;
 }
 
+export interface JournalEntry {
+  id: string;
+  user_id: string;
+  content: string;
+  mood?: string | number;
+  tags?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TimeCapsule {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  unlock_date: string;
+  photo_urls: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LifeChapter {
+  id: string;
+  user_id: string;
+  start_date: string;
+  end_date: string;
+  title: string;
+  description: string;
+  cover_image_url?: string;
+  gpt_summary?: string;
+  gpt_story?: string;
+  raw_data?: any;
+  created_at: string;
+  updated_at: string;
+}
+
 export class DatabaseService {
   private supabase: SupabaseClient;
 
@@ -359,5 +395,64 @@ export class DatabaseService {
     }
 
     return true;
+  }
+
+  async getUserJournalEntries(userId: string, startDate: string, endDate: string): Promise<JournalEntry[]> {
+    const { data, error } = await this.supabase
+      .from('journal_entries')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.error('Error fetching journal entries:', error);
+      return [];
+    }
+    return data || [];
+  }
+
+  async getUserTimeCapsules(userId: string, startDate: string, endDate: string): Promise<TimeCapsule[]> {
+    const { data, error } = await this.supabase
+      .from('time_capsules')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.error('Error fetching time capsules:', error);
+      return [];
+    }
+    return data || [];
+  }
+
+  async getUserMissionsInRange(userId: string, startDate: string, endDate: string): Promise<Mission[]> {
+    const { data, error } = await this.supabase
+      .from('missions')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.error('Error fetching missions in range:', error);
+      return [];
+    }
+    return data || [];
+  }
+
+  async createLifeChapter(chapter: Omit<LifeChapter, 'id' | 'created_at' | 'updated_at'>): Promise<LifeChapter | null> {
+    const { data, error } = await this.supabase
+      .from('life_chapters')
+      .insert([{ ...chapter, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating life chapter:', error);
+      return null;
+    }
+    return data;
   }
 }

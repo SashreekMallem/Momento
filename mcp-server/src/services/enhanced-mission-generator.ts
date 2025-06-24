@@ -236,6 +236,37 @@ Return JSON only:
       avg_age_hours: 0
     };
   }
+
+  async generateLifeChapterStory(lifeChapter: any): Promise<{ summary: string; story: string }> {
+    if (!this.openai) throw new Error('OpenAI not configured');
+    // Compose a prompt for GPT to summarize and narrate the user's life chapter
+    const prompt = `You are an expert biographer AI. Given the following user's life chapter data, write:
+1. A concise summary (max 2 sentences) of the period.
+2. A compelling, emotionally engaging story that weaves together their missions, journal entries, and time capsules, referencing specific events, feelings, and growth.
+
+LIFE CHAPTER DATA (JSON):
+${JSON.stringify(lifeChapter, null, 2)}
+
+Respond as JSON with keys: summary, story.`;
+    const completion = await this.openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: 'You are a helpful, creative AI biographer.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.8,
+      max_tokens: 1200,
+    });
+    // Parse and return the result
+    const text = completion.choices[0]?.message?.content || '';
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch (e) {
+      result = { summary: '', story: text };
+    }
+    return result;
+  }
 }
 
 export default EnhancedMissionGenerator;

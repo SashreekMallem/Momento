@@ -52,6 +52,39 @@ export interface UserEvent {
     user_journey_stage?: string;
     created_at: string;
 }
+export interface JournalEntry {
+    id: string;
+    user_id: string;
+    content: string;
+    mood?: string | number;
+    tags?: string[];
+    created_at: string;
+    updated_at: string;
+}
+export interface TimeCapsule {
+    id: string;
+    user_id: string;
+    title: string;
+    message: string;
+    unlock_date: string;
+    photo_urls: string[];
+    created_at: string;
+    updated_at: string;
+}
+export interface LifeChapter {
+    id: string;
+    user_id: string;
+    start_date: string;
+    end_date: string;
+    title: string;
+    description: string;
+    cover_image_url?: string;
+    gpt_summary?: string;
+    gpt_story?: string;
+    raw_data?: any;
+    created_at: string;
+    updated_at: string;
+}
 export declare class DatabaseService {
     private supabase;
     constructor();
@@ -81,5 +114,9 @@ export declare class DatabaseService {
         typeStats: Record<string, number>;
     } | null>;
     deleteMission(missionId: string): Promise<boolean>;
+    getUserJournalEntries(userId: string, startDate: string, endDate: string): Promise<JournalEntry[]>;
+    getUserTimeCapsules(userId: string, startDate: string, endDate: string): Promise<TimeCapsule[]>;
+    getUserMissionsInRange(userId: string, startDate: string, endDate: string): Promise<Mission[]>;
+    createLifeChapter(chapter: Omit<LifeChapter, 'id' | 'created_at' | 'updated_at'>): Promise<LifeChapter | null>;
 }
 //# sourceMappingURL=database.d.ts.map

@@ -15,6 +15,10 @@ export declare class EnhancedMissionGenerator {
     private storeCacheInDatabase;
     private calculateCost;
     getCacheStats(): Promise<any>;
+    generateLifeChapterStory(lifeChapter: any): Promise<{
+        summary: string;
+        story: string;
+    }>;
 }
 export default EnhancedMissionGenerator;
 //# sourceMappingURL=enhanced-mission-generator.d.ts.map

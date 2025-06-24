@@ -13,6 +13,7 @@ import dotenv from 'dotenv';
 
 import { DatabaseService } from './services/database.js';
 import { MissionGenerator } from './services/mission-generator.js';
+import { EnhancedMissionGenerator } from './services/enhanced-mission-generator.js';
 import { PersonalizationEngine } from './services/personalization.js';
 import { AnalyticsService } from './services/analytics.js';
 
@@ -44,10 +45,19 @@ const AnalyzeUserBehaviorSchema = z.object({
   timeRange: z.enum(['week', 'month', 'year']).default('month'),
 });
 
+const GenerateLifeChapterSchema = z.object({
+  userId: z.string().uuid(),
+  startDate: z.string(), // ISO date string
+  endDate: z.string(),   // ISO date string
+  chapterTitle: z.string().optional(),
+  description: z.string().optional(),
+});
+
 class MomentoMCPServer {
   private server: Server;
   private databaseService: DatabaseService;
   private missionGenerator: MissionGenerator;
+  private enhancedMissionGenerator: EnhancedMissionGenerator;
   private personalizationEngine: PersonalizationEngine;
   private analyticsService: AnalyticsService;
 
@@ -60,6 +70,7 @@ class MomentoMCPServer {
     // Initialize services
     this.databaseService = new DatabaseService();
     this.missionGenerator = new MissionGenerator(this.databaseService);
+    this.enhancedMissionGenerator = new EnhancedMissionGenerator(this.databaseService);
     this.personalizationEngine = new PersonalizationEngine(this.databaseService);
     this.analyticsService = new AnalyticsService(this.databaseService);
 
@@ -247,6 +258,37 @@ class MomentoMCPServer {
               required: ['missionId', 'userId'],
             },
           },
+          {
+            name: 'generate_life_chapter',
+            description: 'Generate a Life Chapter summary for a user based on missions, journals, and time capsules in a date range',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                userId: {
+                  type: 'string',
+                  format: 'uuid',
+                  description: 'The user ID to generate a Life Chapter for',
+                },
+                startDate: {
+                  type: 'string',
+                  description: 'Start date (inclusive, ISO string)',
+                },
+                endDate: {
+                  type: 'string',
+                  description: 'End date (inclusive, ISO string)',
+                },
+                chapterTitle: {
+                  type: 'string',
+                  description: 'Optional title for the Life Chapter',
+                },
+                description: {
+                  type: 'string',
+                  description: 'Optional description for the Life Chapter',
+                },
+              },
+              required: ['userId', 'startDate', 'endDate'],
+            },
+          },
         ],
       };
     });
@@ -273,6 +315,8 @@ class MomentoMCPServer {
             return await this.handleAcceptMission(args);
           case 'reject_mission':
             return await this.handleRejectMission(args);
+          case 'generate_life_chapter':
+            return await this.handleGenerateLifeChapter(args);
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -498,6 +542,46 @@ class MomentoMCPServer {
             success,
             message: success ? 'Mission rejected and deleted' : 'Failed to reject mission',
           }, null, 2),
+        },
+      ],
+    };
+  }
+
+  private async handleGenerateLifeChapter(args: any) {
+    const { userId, startDate, endDate, chapterTitle, description } = GenerateLifeChapterSchema.parse(args);
+    // Insert the new life chapter into the database
+    const inserted = await this.databaseService.createLifeChapter({
+      user_id: userId,
+      start_date: startDate,
+      end_date: endDate,
+      title: chapterTitle || '',
+      description: description || '',
+    });
+    // Fetch all relevant data for the user in the date range
+    const [missions, journalEntries, timeCapsules] = await Promise.all([
+      this.databaseService.getUserMissionsInRange(userId, startDate, endDate),
+      this.databaseService.getUserJournalEntries(userId, startDate, endDate),
+      this.databaseService.getUserTimeCapsules(userId, startDate, endDate),
+    ]);
+    // Compose the MCP payload
+    const lifeChapter = {
+      ...inserted,
+      missions,
+      journal_entries: journalEntries,
+      time_capsules: timeCapsules,
+    };
+    // Generate summary, story, and photo captions using GPT
+    let gptResult = null;
+    try {
+      gptResult = await this.enhancedMissionGenerator.generateLifeChapterStory(lifeChapter);
+    } catch (e) {
+      gptResult = { summary: '', story: 'AI generation failed', photos: [] };
+    }
+    return {
+      content: [
+        {
+          type: 'json',
+          text: JSON.stringify({ success: true, lifeChapter, gptResult }, null, 2),
         },
       ],
     };

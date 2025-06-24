@@ -237,5 +237,59 @@ export class DatabaseService {
         }
         return true;
     }
+    async getUserJournalEntries(userId, startDate, endDate) {
+        const { data, error } = await this.supabase
+            .from('journal_entries')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('created_at', startDate)
+            .lte('created_at', endDate)
+            .order('created_at', { ascending: true });
+        if (error) {
+            console.error('Error fetching journal entries:', error);
+            return [];
+        }
+        return data || [];
+    }
+    async getUserTimeCapsules(userId, startDate, endDate) {
+        const { data, error } = await this.supabase
+            .from('time_capsules')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('created_at', startDate)
+            .lte('created_at', endDate)
+            .order('created_at', { ascending: true });
+        if (error) {
+            console.error('Error fetching time capsules:', error);
+            return [];
+        }
+        return data || [];
+    }
+    async getUserMissionsInRange(userId, startDate, endDate) {
+        const { data, error } = await this.supabase
+            .from('missions')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('created_at', startDate)
+            .lte('created_at', endDate)
+            .order('created_at', { ascending: true });
+        if (error) {
+            console.error('Error fetching missions in range:', error);
+            return [];
+        }
+        return data || [];
+    }
+    async createLifeChapter(chapter) {
+        const { data, error } = await this.supabase
+            .from('life_chapters')
+            .insert([{ ...chapter, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
+            .select()
+            .single();
+        if (error) {
+            console.error('Error creating life chapter:', error);
+            return null;
+        }
+        return data;
+    }
 }
 //# sourceMappingURL=database.js.map

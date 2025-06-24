@@ -25,6 +25,7 @@ export declare class MissionGenerator {
     private generateMissionWithAI;
     private buildMissionGenerationPrompt;
     private getFocusedDataForMission;
+    private getThemeSpecificContext;
     private determineMissionCategory;
     private generateWithOpenAI;
     private generateWithAnthropic;

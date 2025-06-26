@@ -40,15 +40,45 @@ export class EnhancedMissionGenerator {
     // Step 3: Generate multiple missions with minimal token usage
     const missions = await this.generateWithMinimalTokens(prompt);
 
-    // Step 4: Store each mission in database and return all
+    // Step 4: Fetch all previously accepted, completed, or rejected missions for this user in the last 90 days
+    const now = Date.now();
+    const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+    const userMissions = await this.databaseService.getUserMissions(userId, 10000); // large limit for all
+    const seenTitles = new Set(
+      userMissions
+        .filter(m => {
+          const status = (m.status || '').toLowerCase();
+          const created = new Date(m.created_at || 0).getTime();
+          return ['accepted', 'completed', 'rejected'].includes(status) && created >= ninetyDaysAgo;
+        })
+        .map(m => (m.title || '').trim().toLowerCase())
+    );
+
+    // Remove any fallback or generic missions and any that match recently seen titles
+    const filteredMissions = missions.filter((m: any) => {
+      const title = (m.title || '').trim().toLowerCase();
+      if (title === 'connect with a loved one' || title === 'learn something new') return false;
+      if (seenTitles.has(title)) return false;
+      return true;
+    });
+
+    // Debug: Log all generated missions before storing
+    console.log(`🪄 [DEBUG] Generated missions for user ${userId}:`);
+    filteredMissions.forEach((m: any, i: number) => {
+      console.log(`  [${i + 1}] Title: ${m.title}`);
+      console.log(`      Desc: ${m.description}`);
+    });
+
+    // Step 5: Store each mission in database and return all
     const results = [];
-    for (const missionData of missions) {
+    for (const missionData of filteredMissions) {
       const result = await this.databaseService.createMission({
         user_id: userId,
         ...missionData,
-        // generation_cost: missionData.cost, // removed: not in DB schema
-        context_snapshot: { profile_summary: profile }, // Store condensed version
+        context_snapshot: { profile_summary: profile },
       });
+      // Debug: Log stored mission ID
+      console.log(`  [DB] Stored mission: ${result?.id || 'unknown id'} | Title: ${result?.title}`);
       results.push(result);
     }
     return results;

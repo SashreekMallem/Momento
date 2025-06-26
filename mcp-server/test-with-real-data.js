@@ -16,6 +16,10 @@ async function testWithRealData() {
     // Initialize services
     const databaseService = new DatabaseService();
     const missionGenerator = new EnhancedMissionGenerator(databaseService);
+    console.log('🧠 Using mission generator:', missionGenerator.constructor.name);
+    if (missionGenerator.getDebugInfo) {
+      console.log('🔍 Mission generator debug info:', missionGenerator.getDebugInfo());
+    }
 
     // First, let's see what users we have in the database
     console.log('\n📊 Checking existing users...');
@@ -147,6 +151,13 @@ async function testWithRealData() {
         console.log(`   Difficulty: ${mission.difficulty}`);
         console.log(`   Duration: ${mission.estimated_duration} minutes`);
         console.log(`   Description: ${mission.description}`);
+        if (mission.source) {
+          console.log(`   Source: ${mission.source}`);
+        } else if (mission.generation_model) {
+          console.log(`   Source: LLM (${mission.generation_model})`);
+        } else {
+          console.log('   Source: (unknown, possibly fallback template)');
+        }
         if (mission.personalized_elements) {
           console.log('   Personalized Elements:');
           console.log(`     ${JSON.stringify(mission.personalized_elements, null, 6)}`);
@@ -157,9 +168,15 @@ async function testWithRealData() {
         if (mission.required_resources && mission.required_resources.length > 0) {
           console.log(`   Required Resources: ${mission.required_resources.join(', ')}`);
         }
-        console.log(`   Generation Model: ${mission.generation_model}`);
-        console.log(`   Generation Cost: $${mission.generation_cost?.toFixed(6) || 'Unknown'}`);
-        console.log(`   Completion Likelihood: ${mission.completion_likelihood || 'Unknown'}`);
+        if (mission.generation_model) {
+          console.log(`   Generation Model: ${mission.generation_model}`);
+        }
+        if (mission.generation_cost) {
+          console.log(`   Generation Cost: $${mission.generation_cost?.toFixed(6)}`);
+        }
+        if (mission.completion_likelihood) {
+          console.log(`   Completion Likelihood: ${mission.completion_likelihood}`);
+        }
       });
       console.log('\n🎉 Mission generation test completed successfully!');
     } else {

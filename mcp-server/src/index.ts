@@ -12,7 +12,7 @@ import { z } from 'zod';
 import dotenv from 'dotenv';
 
 import { DatabaseService } from './services/database.js';
-import { MissionGenerator } from './services/mission-generator.js';
+// import { MissionGenerator } from './services/mission-generator.js';
 import { EnhancedMissionGenerator } from './services/enhanced-mission-generator.js';
 import { PersonalizationEngine } from './services/personalization.js';
 import { AnalyticsService } from './services/analytics.js';
@@ -56,7 +56,7 @@ const GenerateLifeChapterSchema = z.object({
 class MomentoMCPServer {
   private server: Server;
   private databaseService: DatabaseService;
-  private missionGenerator: MissionGenerator;
+  // private missionGenerator: MissionGenerator;
   private enhancedMissionGenerator: EnhancedMissionGenerator;
   private personalizationEngine: PersonalizationEngine;
   private analyticsService: AnalyticsService;
@@ -69,7 +69,7 @@ class MomentoMCPServer {
 
     // Initialize services
     this.databaseService = new DatabaseService();
-    this.missionGenerator = new MissionGenerator(this.databaseService);
+    // this.missionGenerator = new MissionGenerator(this.databaseService);
     this.enhancedMissionGenerator = new EnhancedMissionGenerator(this.databaseService);
     this.personalizationEngine = new PersonalizationEngine(this.databaseService);
     this.analyticsService = new AnalyticsService(this.databaseService);
@@ -376,8 +376,8 @@ class MomentoMCPServer {
       throw new McpError(ErrorCode.InvalidRequest, 'User profile not found');
     }
 
-    // Generate personalized mission
-    const mission = await this.missionGenerator.generateMission(userId, preferences);
+    // Generate personalized mission (ENHANCED)
+    const [mission] = await this.enhancedMissionGenerator.generateMission(userId, preferences);
     
     // Log generation event
     await this.databaseService.logEvent(userId, 'mission_generated', 'ai_generation', {
@@ -479,15 +479,16 @@ class MomentoMCPServer {
   private async handleGetMissionRecommendations(args: any) {
     const { userId, count = 3 } = args;
     
-    const recommendations = await this.missionGenerator.getRecommendations(userId, count);
+    // const recommendations = await this.missionGenerator.getRecommendations(userId, count);
+    // TODO: If recommendations are needed, use enhancedMissionGenerator or implement equivalent logic.
     
     return {
       content: [
         {
           type: 'text',
           text: JSON.stringify({
-            success: true,
-            recommendations,
+            success: false,
+            message: 'Mission recommendations are not available. Please use enhanced mission generation.',
           }, null, 2),
         },
       ],

@@ -164,7 +164,7 @@ src/
 ├── index.ts              # Main MCP server implementation
 ├── services/
 │   ├── database.ts       # Supabase database service
-│   ├── mission-generator.ts  # AI mission generation
+│   ├── enhanced-mission-generator.ts  # AI mission generation (current)
 │   ├── personalization.ts   # User personalization engine
 │   └── analytics.ts      # Behavioral analytics service
 └── types/                # TypeScript type definitions

@@ -33,20 +33,25 @@ export class EnhancedMissionGenerator {
   async generateMission(userId: string, preferences?: any) {
     // Step 1: Get or generate condensed profile
     const profile = await this.getOptimizedProfile(userId);
-    
+
     // Step 2: Build ultra-efficient prompt (50% fewer tokens)
     const prompt = this.buildOptimizedPrompt(profile, preferences);
-    
-    // Step 3: Generate mission with minimal token usage
-    const missionData = await this.generateWithMinimalTokens(prompt);
-    
-    // Step 4: Store in database
-    return await this.databaseService.createMission({
-      user_id: userId,
-      ...missionData,
-      generation_cost: missionData.cost,
-      context_snapshot: { profile_summary: profile }, // Store condensed version
-    });
+
+    // Step 3: Generate multiple missions with minimal token usage
+    const missions = await this.generateWithMinimalTokens(prompt);
+
+    // Step 4: Store each mission in database and return all
+    const results = [];
+    for (const missionData of missions) {
+      const result = await this.databaseService.createMission({
+        user_id: userId,
+        ...missionData,
+        // generation_cost: missionData.cost, // removed: not in DB schema
+        context_snapshot: { profile_summary: profile }, // Store condensed version
+      });
+      results.push(result);
+    }
+    return results;
   }
 
   private async getOptimizedProfile(userId: string): Promise<CachedProfile> {
@@ -132,13 +137,14 @@ Format as JSON:
 
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error('No profile summary generated');
-    
-    return JSON.parse(content);
+    // Remove Markdown code block markers if present
+    const cleaned = content.replace(/```json|```/g, '').trim();
+    return JSON.parse(cleaned);
   }
 
   private buildOptimizedPrompt(profile: CachedProfile, preferences?: any): string {
     // Ultra-condensed prompt - 70% fewer tokens than original
-    return `Generate a personalized mission for this user profile:
+    return `Generate 3 creative, diverse, and personalized missions for this user profile. Each mission should be unique, avoid repetition, and adapt to the user's context. For food-related missions, sometimes (not always) ask the user to make a specific named dish from their favorite cuisines, and sometimes from outside their favorite cuisines, always providing an exact dish name. Be creative and occasionally introduce new cuisines or dishes. Return ONLY valid JSON as an array of 3 mission objects, each with all required fields:
 
 PROFILE:
 Music: ${profile.musicSummary}
@@ -152,21 +158,24 @@ MISSION TYPE: ${preferences?.missionType || 'experience'}
 DIFFICULTY: ${preferences?.difficulty || 'beginner'}
 DURATION: ${preferences?.duration || 45} minutes
 
-Return JSON only:
-{
-  "title": "Engaging title",
-  "description": "2-sentence description with personal relevance",
-  "mission_type": "${preferences?.missionType || 'experience'}",
-  "difficulty": "${preferences?.difficulty || 'beginner'}",
-  "estimated_duration": ${preferences?.duration || 45},
-  "personalized_elements": {
-    "preferences": ["key preference integrated"],
-    "context": "why this fits them"
-  },
-  "required_resources": ["what they need"],
-  "engagement_score": 0.85,
-  "completion_likelihood": 0.78
-}`;
+Return JSON only, as an array of 3 objects:
+[
+  {
+    "title": "Engaging title",
+    "description": "2-sentence description with personal relevance",
+    "mission_type": "${preferences?.missionType || 'experience'}",
+    "difficulty": "${preferences?.difficulty || 'beginner'}",
+    "estimated_duration": ${preferences?.duration || 45},
+    "personalized_elements": {
+      "preferences": ["key preference integrated"],
+      "context": "why this fits them"
+    },
+    "required_resources": ["what they need"],
+    "engagement_score": 0.85,
+    "completion_likelihood": 0.78
+  }
+]
+`;
   }
 
   private async generateWithMinimalTokens(prompt: string) {
@@ -190,14 +199,24 @@ Return JSON only:
 
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error('No mission generated');
-
-    const missionData = JSON.parse(content);
-    
-    return {
-      ...missionData,
-      model: response.model,
-      cost: this.calculateCost(response.usage?.total_tokens || 0),
-    };
+    // Remove Markdown code block markers if present
+    const cleaned = content.replace(/```json|```/g, '').trim();
+    let missions = JSON.parse(cleaned);
+    if (!Array.isArray(missions)) {
+      missions = [missions];
+    }
+    // Ensure mission_category is always set and non-null for each mission
+    missions = missions.map((missionData: any) => {
+      if (!missionData.mission_category || typeof missionData.mission_category !== 'string' || !missionData.mission_category.trim()) {
+        missionData.mission_category = 'uncategorized';
+      }
+      return {
+        ...missionData,
+        // model: response.model, // removed: not in DB schema
+        // cost: this.calculateCost(response.usage?.total_tokens || 0), // removed: not in DB schema
+      };
+    });
+    return missions;
   }
 
   private isCacheFresh(cached: CachedProfile): boolean {
@@ -261,7 +280,9 @@ Respond as JSON with keys: summary, story.`;
     const text = completion.choices[0]?.message?.content || '';
     let result;
     try {
-      result = JSON.parse(text);
+      // Remove Markdown code block markers if present
+      const cleaned = text.replace(/```json|```/g, '').trim();
+      result = JSON.parse(cleaned);
     } catch (e) {
       result = { summary: '', story: text };
     }

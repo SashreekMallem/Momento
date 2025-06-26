@@ -95,10 +95,10 @@ export class MissionGenerator {
       skills_reinforced: missionData.skills_reinforced || missionData.skillsReinforced || [],
       status: 'generated',
       personalized_elements: missionData.personalized_elements || missionData.personalizedElements,
-      generation_model: missionData.model,
+      // generation_model: missionData.model, // removed: not in DB schema
       prompt_version: '1.0',
       context_snapshot: userContext,
-      generation_cost: missionData.cost,
+      // generation_cost: missionData.cost, // removed: not in DB schema
       engagement_score: missionData.engagement_score || missionData.engagementScore,
       completion_likelihood: missionData.completion_likelihood || missionData.completionLikelihood,
       // Do not add original_mission_id here if not in Mission type

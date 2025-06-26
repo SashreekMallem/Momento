@@ -1,3 +1,4 @@
+// ...existing code...
 import { createClient } from '@supabase/supabase-js';
 export class DatabaseService {
     supabase;
@@ -13,6 +14,55 @@ export class DatabaseService {
                 persistSession: false,
             },
         });
+    }
+    // Get recent missions for a user (to avoid repeats)
+    async getUserRecentMissionIdeas(userId, limit = 10) {
+        const { data, error } = await this.supabase
+            .from('missions')
+            .select('original_mission_id')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        if (error) {
+            console.error('Error fetching recent mission ideas:', error);
+            return [];
+        }
+        return (data || []).map((m) => m.original_mission_id).filter(Boolean);
+    }
+    // Search mission ideas by theme, social context, and exclude recent
+    async searchMissionIdeas(params) {
+        const { theme, socialContext, excludeIds = [], limit = 10 } = params;
+        let query = this.supabase
+            .from('mission_ideas')
+            .select('*')
+            .eq('is_active', true)
+            .eq('moderation_status', 'approved')
+            .ilike('tags', `%${theme}%`)
+            .ilike('mission_category', `%${socialContext}%`)
+            .order('usage_count', { ascending: false })
+            .limit(limit);
+        if (excludeIds.length > 0) {
+            query = query.not('id', 'in', `(${excludeIds.map(id => `'${id}'`).join(',')})`);
+        }
+        const { data, error } = await query;
+        if (error) {
+            console.error('Error searching mission ideas:', error);
+            return [];
+        }
+        return data || [];
+    }
+    // Add a new mission idea to the bank
+    async addMissionIdea(idea) {
+        const { data, error } = await this.supabase
+            .from('mission_ideas')
+            .insert([{ ...idea, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
+            .select()
+            .single();
+        if (error) {
+            console.error('Error adding mission idea:', error);
+            return null;
+        }
+        return data;
     }
     // User Profile Operations
     async getUserProfile(userId) {

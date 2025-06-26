@@ -4,7 +4,7 @@ export declare class EnhancedMissionGenerator {
     private databaseService;
     private profileCache;
     constructor(databaseService: DatabaseService);
-    generateMission(userId: string, preferences?: any): Promise<import("./database.js").Mission | null>;
+    generateMission(userId: string, preferences?: any): Promise<(import("./database.js").Mission | null)[]>;
     private getOptimizedProfile;
     private generateCondensedProfile;
     private generateProfileSummaries;

@@ -20,6 +20,7 @@ export declare class MissionGenerator {
     private databaseService;
     constructor(databaseService: DatabaseService);
     generateMission(userId: string, preferences?: MissionPreferences): Promise<Mission>;
+    private remixIdeasWithLLM;
     getRecommendations(userId: string, count?: number): Promise<MissionRecommendation[]>;
     private gatherUserContext;
     private generateMissionWithAI;

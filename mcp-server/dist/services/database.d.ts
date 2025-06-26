@@ -1,3 +1,24 @@
+export interface MissionIdea {
+    id: string;
+    title: string;
+    description: string;
+    mission_type: string;
+    mission_category: string;
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
+    estimated_duration?: number;
+    required_resources?: string[];
+    tags?: string[];
+    source_type: string;
+    source_user_id?: string;
+    original_mission_id?: string;
+    is_active?: boolean;
+    moderation_status?: string;
+    usage_count?: number;
+    success_rate?: number;
+    user_rating?: number;
+    created_at?: string;
+    updated_at?: string;
+}
 export interface UserProfile {
     id: string;
     user_id: string;
@@ -88,6 +109,14 @@ export interface LifeChapter {
 export declare class DatabaseService {
     private supabase;
     constructor();
+    getUserRecentMissionIdeas(userId: string, limit?: number): Promise<string[]>;
+    searchMissionIdeas(params: {
+        theme: string;
+        socialContext: string;
+        excludeIds?: string[];
+        limit?: number;
+    }): Promise<MissionIdea[]>;
+    addMissionIdea(idea: Omit<MissionIdea, 'id' | 'created_at' | 'updated_at'>): Promise<MissionIdea | null>;
     getUserProfile(userId: string): Promise<UserProfile | null>;
     updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<boolean>;
     getUserPeople(userId: string): Promise<any[]>;

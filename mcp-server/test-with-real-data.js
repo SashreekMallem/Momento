@@ -62,8 +62,20 @@ async function testWithRealData() {
       console.log(`     Life Themes: ${user.life_themes ? Object.keys(user.life_themes).length : 0} themes`);
     });
 
-    // Use the first user for testing
-    const testUser = users[0];
+    // Prompt user to select which user to test
+    const readline = await import('readline');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    let testUser = users[0];
+    if (users.length > 1) {
+      const answer = await new Promise(resolve => {
+        rl.question(`\nSelect user to test (1-${users.length}, default 1): `, resolve);
+      });
+      const idx = parseInt(answer, 10);
+      if (!isNaN(idx) && idx >= 1 && idx <= users.length) {
+        testUser = users[idx - 1];
+      }
+    }
+    rl.close();
     console.log(`\n🎯 Testing mission generation for: ${testUser.display_name || 'Test User'}`);
     console.log(`   User ID: ${testUser.user_id}`);
 
@@ -120,40 +132,38 @@ async function testWithRealData() {
     };
 
     const startTime = Date.now();
-    const mission = await missionGenerator.generateMission(testUser.user_id, missionPreferences);
+    const missions = await missionGenerator.generateMission(testUser.user_id, missionPreferences);
     const generationTime = Date.now() - startTime;
 
-    if (mission) {
-      console.log('✅ Mission Generated Successfully!');
+    if (missions && Array.isArray(missions) && missions.length > 0) {
+      console.log(`✅ ${missions.length} Missions Generated Successfully!`);
       console.log(`   Generation Time: ${generationTime}ms`);
-      console.log(`   Mission ID: ${mission.id}`);
-      console.log(`   Title: ${mission.title}`);
-      console.log(`   Type: ${mission.mission_type}`);
-      console.log(`   Category: ${mission.mission_category}`);
-      console.log(`   Difficulty: ${mission.difficulty}`);
-      console.log(`   Duration: ${mission.estimated_duration} minutes`);
-      console.log(`   Description: ${mission.description}`);
-      
-      if (mission.personalized_elements) {
-        console.log('   Personalized Elements:');
-        console.log(`     ${JSON.stringify(mission.personalized_elements, null, 6)}`);
-      }
-      
-      if (mission.learning_objectives && mission.learning_objectives.length > 0) {
-        console.log(`   Learning Objectives: ${mission.learning_objectives.join(', ')}`);
-      }
-      
-      if (mission.required_resources && mission.required_resources.length > 0) {
-        console.log(`   Required Resources: ${mission.required_resources.join(', ')}`);
-      }
-
-      console.log(`   Generation Model: ${mission.generation_model}`);
-      console.log(`   Generation Cost: $${mission.generation_cost?.toFixed(6) || 'Unknown'}`);
-      console.log(`   Completion Likelihood: ${mission.completion_likelihood || 'Unknown'}`);
-
+      missions.forEach((mission, idx) => {
+        console.log(`\n--- Mission #${idx + 1} ---`);
+        console.log(`   Mission ID: ${mission.id}`);
+        console.log(`   Title: ${mission.title}`);
+        console.log(`   Type: ${mission.mission_type}`);
+        console.log(`   Category: ${mission.mission_category}`);
+        console.log(`   Difficulty: ${mission.difficulty}`);
+        console.log(`   Duration: ${mission.estimated_duration} minutes`);
+        console.log(`   Description: ${mission.description}`);
+        if (mission.personalized_elements) {
+          console.log('   Personalized Elements:');
+          console.log(`     ${JSON.stringify(mission.personalized_elements, null, 6)}`);
+        }
+        if (mission.learning_objectives && mission.learning_objectives.length > 0) {
+          console.log(`   Learning Objectives: ${mission.learning_objectives.join(', ')}`);
+        }
+        if (mission.required_resources && mission.required_resources.length > 0) {
+          console.log(`   Required Resources: ${mission.required_resources.join(', ')}`);
+        }
+        console.log(`   Generation Model: ${mission.generation_model}`);
+        console.log(`   Generation Cost: $${mission.generation_cost?.toFixed(6) || 'Unknown'}`);
+        console.log(`   Completion Likelihood: ${mission.completion_likelihood || 'Unknown'}`);
+      });
       console.log('\n🎉 Mission generation test completed successfully!');
     } else {
-      console.log('❌ Mission generation failed - no mission returned');
+      console.log('❌ Mission generation failed - no missions returned');
     }
 
   } catch (error) {

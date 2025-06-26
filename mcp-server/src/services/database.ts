@@ -1,3 +1,29 @@
+// Mission Idea Bank Types
+export interface MissionIdea {
+  id: string;
+  title: string;
+  description: string;
+  mission_type: string;
+  mission_category: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimated_duration?: number;
+  required_resources?: string[];
+  tags?: string[];
+  source_type: string;
+  source_user_id?: string;
+  original_mission_id?: string;
+  is_active?: boolean;
+  moderation_status?: string;
+  usage_count?: number;
+  success_rate?: number;
+  user_rating?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ...existing code...
+
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export interface UserProfile {
@@ -110,6 +136,58 @@ export class DatabaseService {
         persistSession: false,
       },
     });
+  }
+
+  // Get recent missions for a user (to avoid repeats)
+  async getUserRecentMissionIdeas(userId: string, limit: number = 10): Promise<string[]> {
+    const { data, error } = await this.supabase
+      .from('missions')
+      .select('original_mission_id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) {
+      console.error('Error fetching recent mission ideas:', error);
+      return [];
+    }
+    return (data || []).map((m: any) => m.original_mission_id).filter(Boolean);
+  }
+
+  // Search mission ideas by theme, social context, and exclude recent
+  async searchMissionIdeas(params: { theme: string, socialContext: string, excludeIds?: string[], limit?: number }): Promise<MissionIdea[]> {
+    const { theme, socialContext, excludeIds = [], limit = 10 } = params;
+    let query = this.supabase
+      .from('mission_ideas')
+      .select('*')
+      .eq('is_active', true)
+      .eq('moderation_status', 'approved')
+      .ilike('tags', `%${theme}%`)
+      .ilike('mission_category', `%${socialContext}%`)
+      .order('usage_count', { ascending: false })
+      .limit(limit);
+    if (excludeIds.length > 0) {
+      query = query.not('id', 'in', `(${excludeIds.map(id => `'${id}'`).join(',')})`);
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error searching mission ideas:', error);
+      return [];
+    }
+    return data || [];
+  }
+
+  // Add a new mission idea to the bank
+  async addMissionIdea(idea: Omit<MissionIdea, 'id' | 'created_at' | 'updated_at'>): Promise<MissionIdea | null> {
+    const { data, error } = await this.supabase
+      .from('mission_ideas')
+      .insert([{ ...idea, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
+      .select()
+      .single();
+    if (error) {
+      console.error('Error adding mission idea:', error);
+      return null;
+    }
+    return data;
   }
 
   // User Profile Operations

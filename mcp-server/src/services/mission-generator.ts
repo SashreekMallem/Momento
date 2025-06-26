@@ -47,17 +47,46 @@ export class MissionGenerator {
   ): Promise<Mission> {
     // Gather user context
     const userContext = await this.gatherUserContext(userId);
-    
-    // Generate mission using AI
-    const missionData = await this.generateMissionWithAI(userContext, preferences);
-    
-    // Create mission in database
+
+    // 1. Get recent mission idea IDs for this user (avoid repeats)
+    const recentIdeaIds = await this.databaseService.getUserRecentMissionIdeas(userId, 10);
+
+    // 2. Search idea bank for matching ideas (by theme/social context, exclude recent)
+    const focusedData = this.getFocusedDataForMission(userContext, preferences);
+    let candidates = await this.databaseService.searchMissionIdeas({
+      theme: focusedData.primaryTheme,
+      socialContext: focusedData.socialContext,
+      excludeIds: recentIdeaIds,
+      limit: 8
+    });
+
+    // 3. Sometimes combine two ideas for novelty
+    let missionData;
+    if (candidates.length > 0 && Math.random() > 0.3) {
+      // 70%: Adapt/remix from idea bank
+      const selected = candidates[Math.floor(Math.random() * candidates.length)];
+      let combined;
+      if (candidates.length > 1 && Math.random() > 0.7) {
+        // 30% of the time, combine two ideas
+        const other = candidates.filter(c => c.id !== selected.id)[Math.floor(Math.random() * (candidates.length - 1))];
+        combined = await this.remixIdeasWithLLM([selected, other], userContext);
+        missionData = combined;
+      } else {
+        // Adapt a single idea
+        missionData = await this.remixIdeasWithLLM([selected], userContext);
+      }
+    } else {
+      // 30%: Generate new with LLM
+      missionData = await this.generateMissionWithAI(userContext, preferences);
+    }
+
+    // 4. Create mission in database
     const mission = await this.databaseService.createMission({
       user_id: userId,
       title: missionData.title,
       description: missionData.description,
-      mission_type: missionData.mission_type || missionData.type, // Handle both field names
-      mission_category: missionData.mission_category || missionData.category, // Handle both field names
+      mission_type: missionData.mission_type || missionData.type,
+      mission_category: missionData.mission_category || missionData.category,
       difficulty: missionData.difficulty,
       estimated_duration: missionData.estimated_duration || missionData.estimatedDuration,
       required_resources: missionData.required_resources || missionData.requiredResources || [],
@@ -72,13 +101,52 @@ export class MissionGenerator {
       generation_cost: missionData.cost,
       engagement_score: missionData.engagement_score || missionData.engagementScore,
       completion_likelihood: missionData.completion_likelihood || missionData.completionLikelihood,
+      // Do not add original_mission_id here if not in Mission type
     });
+
+    // 5. Add every new or remixed mission to the idea bank for future use
+    if (mission) {
+      await this.databaseService.addMissionIdea({
+        title: mission.title,
+        description: mission.description,
+        mission_type: mission.mission_type,
+        mission_category: mission.mission_category,
+        difficulty: mission.difficulty,
+        estimated_duration: mission.estimated_duration,
+        required_resources: mission.required_resources,
+        tags: [focusedData.primaryTheme, focusedData.socialContext],
+        source_type: 'ai_generated',
+        original_mission_id: mission.id,
+        is_active: true,
+        moderation_status: 'pending',
+      });
+    }
 
     if (!mission) {
       throw new Error('Failed to create mission in database');
     }
 
     return mission;
+  }
+
+  // Remix/adapt one or more ideas for the user using LLM
+  private async remixIdeasWithLLM(ideas: any[], userContext: any) {
+    const prompt = `Remix and adapt the following mission ideas for this user context. Combine if more than one.\n\nUser Context: ${JSON.stringify(userContext)}\n\nMission Ideas: ${JSON.stringify(ideas)}\n\nRespond in valid JSON with fields: title, description, mission_type, mission_category, difficulty, estimated_duration, required_resources, learning_objectives, personalized_elements.`;
+    if (this.openai) {
+      const completion = await this.openai.chat.completions.create({
+        model: process.env.DEFAULT_MISSION_MODEL || 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are a mission generation AI for Momento. Respond only with valid JSON.' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.8,
+        max_tokens: 1000,
+      });
+      const content = completion.choices[0]?.message?.content;
+      if (!content) throw new Error('No remix content generated');
+      return JSON.parse(content);
+    }
+    throw new Error('No LLM available for remix');
   }
 
   async getRecommendations(

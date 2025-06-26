@@ -299,6 +299,8 @@ class MomentoMCPServer {
 
       try {
         switch (name) {
+          case 'submit_mission_idea':
+            return await this.handleSubmitMissionIdea(args);
           case 'generate_mission':
             return await this.handleGenerateMission(args);
           case 'get_user_profile':
@@ -333,6 +335,36 @@ class MomentoMCPServer {
         );
       }
     });
+  }
+  // Handler for user-submitted mission ideas
+  private async handleSubmitMissionIdea(args: any) {
+    const SubmitMissionIdeaSchema = z.object({
+      title: z.string().min(3),
+      description: z.string().min(5),
+      mission_type: z.string(),
+      mission_category: z.string(),
+      difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
+      estimated_duration: z.number().optional(),
+      required_resources: z.array(z.string()).optional(),
+      tags: z.array(z.string()).optional(),
+      source_user_id: z.string().uuid().optional(),
+    });
+    const parsed = SubmitMissionIdeaSchema.parse(args);
+    const idea = {
+      ...parsed,
+      source_type: parsed.source_user_id ? 'user_submitted' : 'manual',
+      moderation_status: 'pending',
+      is_active: true,
+    };
+    const result = await this.databaseService.addMissionIdea(idea);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ success: !!result, idea: result }, null, 2),
+        },
+      ],
+    };
   }
 
   private async handleGenerateMission(args: any) {

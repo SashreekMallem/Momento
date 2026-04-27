@@ -1,60 +1,39 @@
-# 🌟 Momento — Live Your Story
+# Momento — AI Personal Memory OS
 
-# 🌟 Momento — Live Your Story
+Your life, queryable. Momento is a mobile app for journaling, time capsules, life chapters, and mission tracking — with an MCP bridge server that lets LLM tools like Claude query your memory context across sessions via semantic retrieval.
 
-## Core Mission
-Don't just post stories. Live them. Momento helps individuals and couples intentionally create meaningful, fun, and unforgettable moments — and then reflect, preserve, share, or relive them — all while unlocking real-world benefits and deeper joy.
+## What makes it different
 
-## Core Philosophy
-Most apps chase your attention. Momento chases your fulfillment.
+Most journal apps are write-only. You record things and never find them again. Momento treats your memories as a structured, searchable database. The MCP server means your AI assistant can actually retrieve context from your life when it needs it.
 
-## Project Structure
+## Architecture
+
 ```
-Momento/
-├── docs/                          # Essential documentation
-│   ├── mcp-integration/          # MCP server implementations
-│   ├── llm-integration.md        # LLM integration guide
-│   └── mcp-architecture.md       # MCP architecture overview
-├── mobile-app/MomentoApp/        # React Native + Expo mobile app
-│   ├── screens/                  # Onboarding and main screens
-│   ├── lib/supabase.ts          # Database client and functions
-│   └── constants/                # App theming and constants
-├── database/                     # Database management
-│   ├── migrations/               # SQL schema migrations
-│   ├── run-migrations.js         # Migration runner script
-│   └── package.json             # Database tooling
-└── FINAL_ALIGNMENT_REPORT.md    # Complete system documentation
+Mobile app (Expo) → Supabase (Postgres + pgvector)
+                              ↕
+                    MCP Bridge Server (Node.js)
+                              ↕
+              Claude / ChatGPT / any MCP-compatible LLM
 ```
 
-## Quick Start
+The MCP bridge server exposes your memory store as tool calls. When an LLM needs context about your past — goals you set, decisions you made, moments you logged — it queries the bridge, which runs a pgvector semantic similarity search and returns relevant entries.
 
-### Database Setup
-```bash
-cd database
-npm install
-SUPABASE_SERVICE_ROLE_KEY="your-key" npm run migrate
-```
+## Tech stack
 
-### Mobile App Setup
-```bash
-cd mobile-app/MomentoApp
-npm install
-npx expo start
-```
+- **Mobile** — Expo (React Native), TypeScript, cross-platform iOS + Android
+- **Backend** — Supabase (Postgres 17 + pgvector + Auth + Storage)
+- **MCP server** — Node.js, Model Context Protocol, semantic retrieval
+- **AI** — OpenAI embeddings for memory indexing, vector similarity search
 
-## Tech Stack
-- **Mobile**: React Native with Expo
-- **Backend**: Supabase (PostgreSQL + Auth + Storage)
-- **UI/UX**: Premium glassmorphism design
-- **AI Integration**: OpenAI GPT-4 via MCP servers
-- **Database**: Normalized PostgreSQL with JSONB flexibility
+## Key features
 
-## Current Status
-✅ **Complete MCP Architecture** - Full system alignment verified
-✅ **Mobile App** - Comprehensive onboarding flow implemented  
-✅ **Database Schema** - Normalized, scalable, MCP-ready structure
-🚧 **LLM Integration** - Next phase: Mission generation system
+- Journal entries with rich context tagging
+- Time capsules — write to your future self
+- Life chapters — structured periods with reflections
+- Mission tracking — long-horizon goals with progress markers
+- Semantic memory search — find entries by meaning, not just keywords
+- MCP server — expose your memory to any LLM as tool calls
 
-*See [FINAL_ALIGNMENT_REPORT.md](./FINAL_ALIGNMENT_REPORT.md) for complete technical documentation.*
-# Momento
-# Momento
+## MCP integration
+
+See `docs/mcp-architecture.md` and `docs/mcp-integration/` for full details on connecting the bridge server to Claude or other MCP-compatible clients.
